@@ -1,0 +1,33 @@
+# OxideBSD: builds ninja with plain make -- no Python (configure.py --bootstrap) and no CMake,
+# neither of which exists on OxideBSD yet. POSIX make syntax only (suffix rules, no GNU or bmake
+# extensions), so the same file drives both the host cross-build (OxideBSD's build.rs, GNU make)
+# and the on-target self-hosted build (bmake + clang++). The source list mirrors configure.py's
+# non-Windows, non-test set; depfile_parser.cc/lexer.cc are the re2c outputs the tree already
+# ships, so re2c isn't needed either.
+#
+#   make -f Makefile.oxidebsd                      # on OxideBSD: plain clang++, static
+#   make -f Makefile.oxidebsd CXX=... LDFLAGS=...  # cross: see build_ninja in OxideBSD's build.rs
+
+CXX = clang++
+CXXFLAGS = -O2 -DNDEBUG -std=c++14 -fno-rtti -fno-exceptions -Wno-deprecated -DUSE_PPOLL
+LDFLAGS = -static
+
+OBJS = src/build.o src/build_log.o src/clean.o src/clparser.o src/debug_flags.o \
+	src/depfile_parser.o src/deps_log.o src/disk_interface.o src/dyndep.o \
+	src/dyndep_parser.o src/edit_distance.o src/elide_middle.o src/eval_env.o \
+	src/graph.o src/graphviz.o src/jobserver.o src/jobserver-posix.o src/json.o \
+	src/lexer.o src/line_printer.o src/manifest_parser.o src/metrics.o \
+	src/missing_deps.o src/parser.o src/real_command_runner.o src/state.o \
+	src/status_printer.o src/string_piece_util.o src/subprocess-posix.o src/util.o \
+	src/version.o src/ninja.o
+
+.SUFFIXES: .cc .o
+
+ninja: $(OBJS)
+	$(CXX) $(LDFLAGS) -o ninja $(OBJS)
+
+.cc.o:
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+clean:
+	rm -f ninja $(OBJS)
